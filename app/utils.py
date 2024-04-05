@@ -5,7 +5,7 @@ from typing import Tuple, Dict, List, Union, Optional
 
 import time
 
-SOURCES_PATH = 'app/sources/'
+SOURCES_PATH = 'sources/'
 
 
 def draw_tree(

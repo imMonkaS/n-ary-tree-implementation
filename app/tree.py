@@ -11,7 +11,7 @@ class Node:
         self.value = value
         self.id = _id
         # self.first_child = None
-        self.siblings = []
+        self.children = []
 
 
 class Tree:
@@ -36,14 +36,14 @@ class Tree:
             self.nodes_amount += 1
             return Node(value, self.nodes_amount)
 
-        if len(node.siblings) == 0:
-            node.siblings.append(self._insert_node(value, None))
+        if len(node.children) == 0:
+            node.children.append(self._insert_node(value, None))
         else:
-            if random.randint(0, 1) and self.arity > len(node.siblings):
-                node.siblings.append(self._insert_node(value, None))
+            if random.randint(0, 1) and self.arity > len(node.children):
+                node.children.append(self._insert_node(value, None))
             else:
-                child = random.randint(0, len(node.siblings) - 1)
-                node.siblings[child] = self._insert_node(value, node.siblings[child])
+                child = random.randint(0, len(node.children) - 1)
+                node.children[child] = self._insert_node(value, node.children[child])
 
         return node
 
@@ -56,20 +56,20 @@ class Tree:
         """
         if node is not None:
             print(indent + str(node.value))
-            for node in node.siblings:
+            for node in node.children:
                 self.print_tree(node, indent + "  ")
 
     def print_tree_ids(self, node, indent=""):
         if node is not None:
             print(indent + str(node.id))
-            for node in node.siblings:
+            for node in node.children:
                 self.print_tree(node, indent + "  ")
 
     def print_tree_ids_to_file(self, node, output_file: str, indent=""):
         if node is not None:
             with open(output_file, 'a') as f:
                 f.write(indent + str(node.id) + '\n')
-            for node in node.siblings:
+            for node in node.children:
                 self.print_tree(node, indent + "  ")
 
     def random_insertion(self, start: int, end: int, amount: int):
@@ -91,17 +91,14 @@ class Tree:
         if node is None:
             return ""
         result = ''
-        if node.left or node.right:
+        if len(node.children) > 0:
             result += f"{node.id}: ["
-            if node.left:
-                result += f"({node.left.id}, {node.left.value})"
-            if node.right and node.left:
-                result += ", "
-            if node.right:
-                result += f"({node.right.id}, {node.right.value})"
+            for child in node.children:
+                result += f"{'(' + str(child.id) + ', ' + str(child.value) + ')'}, "
+            result = result[:-2]
             result += "],\n"
-        result += self._export_tree(node.left)
-        result += self._export_tree(node.right)
+        for child in node.children:
+            result += self._export_tree(child)
         return result
 
     def export_tree_to_file(self, filename):
@@ -113,6 +110,38 @@ class Tree:
         """
         with open(filename, 'w') as f:
             f.write('{\n' + f"'root_value': {self.root.value},\n" + self._export_tree(self.root) + '}')
+
+    def print_nodes_per_level(self):
+        if not self.root:
+            return
+
+        queue = [self.root]
+        level = 0
+        while queue:
+            print(f'Уровень {level}: {len(queue)} вершин')
+            next_queue = []
+            for node in queue:
+                for child in node.children:
+                    next_queue.append(child)
+            queue = next_queue
+            level += 1
+
+    def print_nodes_per_level_to_file(self, output):
+        if not self.root:
+            return
+
+        queue = [self.root]
+        level = 0
+        output_file = open(output, 'w')
+        while queue:
+            output_file.write(f'Уровень {level}: {len(queue)} вершин\n')
+            next_queue = []
+            for node in queue:
+                for child in node.children:
+                    next_queue.append(child)
+            queue = next_queue
+            level += 1
+        output_file.close()
 
     def read_tree_from_dict(self, tree_dict):
         """
@@ -129,15 +158,16 @@ class Tree:
         for node_id, children in list(tree_dict.items())[1:]:
             node = nodes[node_id]
             if children:
-                left_child, right_child = children[0], children[1] if len(children) > 1 else None
-                if left_child:
-                    left_id, left_value = left_child
-                    if left_id not in nodes:
-                        nodes[left_id] = Node(left_value, left_id)
-                    node.left = nodes[left_id]
-                if right_child:
-                    right_id, right_value = right_child
-                    if right_id not in nodes:
-                        nodes[right_id] = Node(right_value, right_id)
-                    node.right = nodes[right_id]
+                # child, right_child = children[0], children[1] if len(children) > 1 else None
+                for child in children:
+                    if child:
+                        child_id, child_value = child
+                        if child_id not in nodes:
+                            nodes[child_id] = Node(child_value, child_id)
+                        node.children.append(nodes[child_id])
+                # if right_child:
+                #     right_id, right_value = right_child
+                #     if right_id not in nodes:
+                #         nodes[right_id] = Node(right_value, right_id)
+                #     node.right = nodes[right_id]
         self.root = nodes[1]
