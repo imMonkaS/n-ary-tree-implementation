@@ -1,73 +1,93 @@
 import random
+from typing import List
 
 
 class Node:
+    """
+    Класс узла.
+    У каждого узла свой Ид для возможности уникальной идентификации.
+    """
     def __init__(self, value, _id):
         self.value = value
         self.id = _id
-        self.children = []
+        # self.first_child = None
+        self.siblings = []
 
 
 class Tree:
-    def __init__(self):
+    """
+    Класс n-арного дерева
+    """
+    def __init__(self, _arity: int = 4):
         self.root = None
+        self.arity = _arity
         self.nodes_amount = 0
 
-    # def insert_node(self, value, node: Node):
-    #     if node is None:
-    #         self.nodes_amount += 1
-    #         return Node(value, self.nodes_amount)
-    #
-    #     if random.randint(0, 1):
-    #         node.children.append(self.insert_node(value, node.left))
-    #     else:
-    #         node.right = self.insert_node(value, node.right)
-    #     return node
+    def _insert_node(self, value, node: Node):
+        """
+        Вставка узла. Используется вставка через случайный элемент, чтобы создаваемые рандомно деревья
+        не были сбалансированными
 
-    # def insert(self, value):
-    #     self.root = self.insert_node(value, self.root)
+        Args:
+            value: то что лежит в узле
+            node: узел
+        """
+        if node is None:
+            self.nodes_amount += 1
+            return Node(value, self.nodes_amount)
+
+        if len(node.siblings) == 0:
+            node.siblings.append(self._insert_node(value, None))
+        else:
+            if random.randint(0, 1) and self.arity > len(node.siblings):
+                node.siblings.append(self._insert_node(value, None))
+            else:
+                child = random.randint(0, len(node.siblings) - 1)
+                node.siblings[child] = self._insert_node(value, node.siblings[child])
+
+        return node
+
+    def insert(self, value):
+        self.root = self._insert_node(value, self.root)
 
     def print_tree(self, node, indent=""):
+        """
+        Вывод в консоль
+        """
         if node is not None:
             print(indent + str(node.value))
-            self.print_tree(node.left, indent + "  ")
-            self.print_tree(node.right, indent + "  ")
+            for node in node.siblings:
+                self.print_tree(node, indent + "  ")
 
     def print_tree_ids(self, node, indent=""):
         if node is not None:
             print(indent + str(node.id))
-            self.print_tree_ids(node.left, indent + "  ")
-            self.print_tree_ids(node.right, indent + "  ")
+            for node in node.siblings:
+                self.print_tree(node, indent + "  ")
 
     def print_tree_ids_to_file(self, node, output_file: str, indent=""):
         if node is not None:
             with open(output_file, 'a') as f:
                 f.write(indent + str(node.id) + '\n')
-            self.print_tree_ids_to_file(node.left, output_file, indent + "  ")
-            self.print_tree_ids_to_file(node.right, output_file, indent + "  ")
+            for node in node.siblings:
+                self.print_tree(node, indent + "  ")
 
-    # def random_insertion(self, start: int, end: int, amount: int):
-    #     values = [random.randint(start, end) for _ in range(amount)]
-    #     for value in values:
-    #         self.insert(value)
+    def random_insertion(self, start: int, end: int, amount: int):
+        """
+        Вставка amount кол-ва узлов
+        Args:
+            start: нижний диапазон случ. знач.
+            end: верхний диапазон случ. знач.
+            amount: кол-во узлов, которые будут вставлены
+        """
+        values = [random.randint(start, end) for _ in range(amount)]
+        for value in values:
+            self.insert(value)
 
     def print_full_tree(self):
         self.print_tree(self.root)
 
-    def export_tree(self, node):
-        if node is None:
-            return ""
-        result = f"{node.value}: ["
-        if node.left:
-            result += f"{node.left.value}, "
-        if node.right:
-            result += f"{node.right.value}"
-        result += "], "
-        result += self.export_tree(node.left)
-        result += self.export_tree(node.right)
-        return result
-
-    def export_tree_with_ids(self, node):
+    def _export_tree(self, node):
         if node is None:
             return ""
         result = ''
@@ -80,21 +100,31 @@ class Tree:
             if node.right:
                 result += f"({node.right.id}, {node.right.value})"
             result += "],\n"
-        result += self.export_tree_with_ids(node.left)
-        result += self.export_tree_with_ids(node.right)
+        result += self._export_tree(node.left)
+        result += self._export_tree(node.right)
         return result
 
     def export_tree_to_file(self, filename):
+        """
+        Экспортировать дерево в файл для возможности его отрисовки
+        и повторной работы.
+        Args:
+            filename: путь до файла, который будет создан
+        """
         with open(filename, 'w') as f:
-            f.write(self.export_tree(self.root))
-
-    def export_tree_with_ids_to_file(self, filename):
-        with open(filename, 'w') as f:
-            f.write('{\n' + f"'root_value': {self.root.value},\n" + self.export_tree_with_ids(self.root) + '}')
+            f.write('{\n' + f"'root_value': {self.root.value},\n" + self._export_tree(self.root) + '}')
 
     def read_tree_from_dict(self, tree_dict):
-        nodes = {}
-        nodes[1] = Node(tree_dict['root_value'], 1)
+        """
+        Считать дерево из словаря (есть отдельная функция для преобразования файла в словарь.
+
+        Args:
+            tree_dict: словарь с деревом в формате:
+                        'root_value': *val*
+                        id_int: [(id_children_int, val_children)]
+        """
+
+        nodes = {1: Node(tree_dict['root_value'], 1)}
 
         for node_id, children in list(tree_dict.items())[1:]:
             node = nodes[node_id]
